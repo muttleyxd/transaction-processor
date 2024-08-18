@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::{
     account_manager::account::Account,
-    model::{ClientId, InputRecord},
+    model::{ClientId, InputRecord, OutputRecord},
 };
 
 pub mod account;
@@ -21,7 +21,7 @@ impl AccountManager {
     }
 
     pub fn process_record(&mut self, record: &InputRecord) -> Result<(), Error> {
-        if self.accounts.contains_key(&record.client_id) {
+        if !self.accounts.contains_key(&record.client_id) {
             self.accounts
                 .insert(record.client_id, Account::new(record.client_id));
         }
@@ -33,6 +33,13 @@ impl AccountManager {
         account.process_record(record)?;
 
         Ok(())
+    }
+
+    pub fn gather_output(&self) -> Vec<OutputRecord> {
+        self.accounts
+            .iter()
+            .map(|(_, account)| account.to_output())
+            .collect()
     }
 }
 
