@@ -22,10 +22,8 @@ impl AccountManager {
 
     pub fn process_record(&mut self, record: &InputRecord) -> Result<(), Error> {
         if self.accounts.contains_key(&record.client_id) {
-            self.accounts.insert(
-                record.client_id,
-                Account::new(record.client_id),
-            );
+            self.accounts
+                .insert(record.client_id, Account::new(record.client_id));
         }
 
         let account = self

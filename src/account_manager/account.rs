@@ -501,10 +501,7 @@ mod tests {
 
         assert_eq!(dec!(0.0), account.available);
         assert_eq!(dec!(0.0), account.held);
-        assert_eq!(
-            TransactionState::Resolved,
-            account.transactions[&0].state
-        );
+        assert_eq!(TransactionState::Resolved, account.transactions[&0].state);
     }
 
     #[test]
@@ -534,10 +531,7 @@ mod tests {
 
         assert_eq!(dec!(10.0), account.available);
         assert_eq!(dec!(0.0), account.held);
-        assert_eq!(
-            TransactionState::Resolved,
-            account.transactions[&0].state
-        );
+        assert_eq!(TransactionState::Resolved, account.transactions[&0].state);
     }
 
     #[test]
