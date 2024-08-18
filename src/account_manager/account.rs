@@ -660,4 +660,135 @@ mod tests {
             Err(ProcessingError::TransactionAlreadyExists(_))
         ));
     }
+
+    #[test]
+    fn test_process_complex_flow_success() {
+        let mut account = Account {
+            client_id: 0,
+            transactions: HashMap::default(),
+            available: dec!(0.0),
+            held: dec!(0.0),
+            locked: false,
+        };
+
+        // Deposit 100 and withdraw 50
+        account
+            .process_record(&InputRecord {
+                r#type: InputRecordType::Deposit,
+                client_id: 0,
+                transaction_id: 0,
+                amount: Some(dec!(100.0)),
+            })
+            .unwrap();
+        account
+            .process_record(&InputRecord {
+                r#type: InputRecordType::Withdrawal,
+                client_id: 0,
+                transaction_id: 1,
+                amount: Some(dec!(50.0)),
+            })
+            .unwrap();
+        assert_eq!(dec!(50.0), account.available);
+        assert_eq!(dec!(0.0), account.held);
+
+        // Dispute the withdrawal
+        account
+            .process_record(&InputRecord {
+                r#type: InputRecordType::Dispute,
+                client_id: 0,
+                transaction_id: 1,
+                amount: None,
+            })
+            .unwrap();
+        assert_eq!(dec!(50.0), account.available);
+        assert_eq!(dec!(50.0), account.held);
+
+        // Resolve the withdrawal
+        account
+            .process_record(&InputRecord {
+                r#type: InputRecordType::Resolve,
+                client_id: 0,
+                transaction_id: 1,
+                amount: None,
+            })
+            .unwrap();
+        assert_eq!(dec!(100.0), account.available);
+        assert_eq!(dec!(0.0), account.held);
+
+        // Dispute the deposit
+        account
+            .process_record(&InputRecord {
+                r#type: InputRecordType::Dispute,
+                client_id: 0,
+                transaction_id: 0,
+                amount: None,
+            })
+            .unwrap();
+        assert_eq!(dec!(0.0), account.available);
+        assert_eq!(dec!(100.0), account.held);
+
+        // Resolve the deposit
+        account
+            .process_record(&InputRecord {
+                r#type: InputRecordType::Resolve,
+                client_id: 0,
+                transaction_id: 0,
+                amount: None,
+            })
+            .unwrap();
+        assert_eq!(dec!(0.0), account.available);
+        assert_eq!(dec!(0.0), account.held);
+
+        // Deposit 100 and withdraw 100
+        account
+            .process_record(&InputRecord {
+                r#type: InputRecordType::Deposit,
+                client_id: 0,
+                transaction_id: 2,
+                amount: Some(dec!(100.0)),
+            })
+            .unwrap();
+        account
+            .process_record(&InputRecord {
+                r#type: InputRecordType::Withdrawal,
+                client_id: 0,
+                transaction_id: 3,
+                amount: Some(dec!(100.0)),
+            })
+            .unwrap();
+        assert_eq!(dec!(0.0), account.available);
+        assert_eq!(dec!(0.0), account.held);
+
+        // Dispute deposit and chargeback deposit
+        account
+            .process_record(&InputRecord {
+                r#type: InputRecordType::Dispute,
+                client_id: 0,
+                transaction_id: 2,
+                amount: None,
+            })
+            .unwrap();
+        account
+            .process_record(&InputRecord {
+                r#type: InputRecordType::Chargeback,
+                client_id: 0,
+                transaction_id: 2,
+                amount: None,
+            })
+            .unwrap();
+        assert_eq!(dec!(-100.0), account.available);
+        assert_eq!(dec!(0.0), account.held);
+        assert!(account.locked);
+
+        // No further operations are allowed
+        assert!(matches!(
+            account.process_record(&InputRecord {
+                r#type: InputRecordType::Deposit,
+                client_id: 0,
+                transaction_id: 4,
+                amount: Some(dec!(99999.0)),
+            }),
+            Err(ProcessingError::AccountIsLocked)
+        ));
+    }
 }
