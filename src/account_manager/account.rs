@@ -24,7 +24,7 @@ struct Transaction {
     pub r#type: TransactionType,
 }
 
-#[derive(Clone, Debug, PartialEq, Display)]
+#[derive(Clone, Debug, Eq, PartialEq, Display)]
 pub enum TransactionState {
     Valid,
     Dispute,
@@ -32,7 +32,7 @@ pub enum TransactionState {
     ChargedBack,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 enum TransactionType {
     Deposit,
     Withdrawal,
@@ -42,7 +42,7 @@ impl Account {
     pub fn new(client_id: ClientId) -> Self {
         Self {
             client_id,
-            transactions: Default::default(),
+            transactions: HashMap::default(),
 
             available: Decimal::ZERO,
             held: Decimal::ZERO,
@@ -51,7 +51,7 @@ impl Account {
         }
     }
 
-    pub fn process_record(&mut self, record: InputRecord) -> Result<(), ProcessingError> {
+    pub fn process_record(&mut self, record: &InputRecord) -> Result<(), ProcessingError> {
         if self.locked {
             return Err(ProcessingError::AccountIsLocked);
         }
@@ -82,8 +82,7 @@ impl Account {
                     return Err(ProcessingError::WithdrawalNotEnoughMoneyAvailable(
                         self.available,
                         amount,
-                    )
-                    .into());
+                    ));
                 }
 
                 self.transactions.insert(
@@ -220,6 +219,7 @@ fn check_if_state_eq(
 mod tests {
     use std::collections::HashMap;
 
+    use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
 
     use super::{Account, ProcessingError, Transaction, TransactionState, TransactionType};
@@ -229,7 +229,7 @@ mod tests {
     fn test_to_output() {
         let account = Account {
             client_id: 1234,
-            transactions: Default::default(),
+            transactions: HashMap::default(),
             available: dec!(10.0),
             held: dec!(15.0),
             locked: true,
@@ -247,7 +247,7 @@ mod tests {
     fn test_process_deposit_success() {
         let mut account = Account::new(0);
         account
-            .process_record(InputRecord {
+            .process_record(&InputRecord {
                 r#type: InputRecordType::Deposit,
                 client_id: 0,
                 transaction_id: 0,
@@ -261,7 +261,7 @@ mod tests {
     #[test]
     fn test_process_deposit_fail_missing_amount() {
         let mut account = Account::new(0);
-        let result = account.process_record(InputRecord {
+        let result = account.process_record(&InputRecord {
             r#type: InputRecordType::Deposit,
             client_id: 0,
             transaction_id: 0,
@@ -275,13 +275,13 @@ mod tests {
     fn test_process_withdrawal_success() {
         let mut account = Account {
             client_id: 0,
-            transactions: Default::default(),
+            transactions: HashMap::default(),
             available: dec!(10.0),
-            held: Default::default(),
+            held: Decimal::default(),
             locked: false,
         };
         account
-            .process_record(InputRecord {
+            .process_record(&InputRecord {
                 r#type: InputRecordType::Withdrawal,
                 client_id: 0,
                 transaction_id: 0,
@@ -290,13 +290,13 @@ mod tests {
             .unwrap();
 
         assert_eq!(dec!(9.0), account.available);
-        assert_eq!(dec!(-1.0), account.transactions.get(&0).unwrap().amount);
+        assert_eq!(dec!(-1.0), account.transactions[&0].amount);
     }
 
     #[test]
     fn test_process_withdraw_fail_missing_amount() {
         let mut account = Account::new(0);
-        let result = account.process_record(InputRecord {
+        let result = account.process_record(&InputRecord {
             r#type: InputRecordType::Withdrawal,
             client_id: 0,
             transaction_id: 0,
@@ -310,12 +310,12 @@ mod tests {
     fn test_process_withdrawal_fail_not_enough_money() {
         let mut account = Account {
             client_id: 0,
-            transactions: Default::default(),
+            transactions: HashMap::default(),
             available: dec!(10.0),
-            held: Default::default(),
+            held: Decimal::default(),
             locked: false,
         };
-        let result = account.process_record(InputRecord {
+        let result = account.process_record(&InputRecord {
             r#type: InputRecordType::Withdrawal,
             client_id: 0,
             transaction_id: 0,
@@ -345,7 +345,7 @@ mod tests {
             locked: false,
         };
         account
-            .process_record(InputRecord {
+            .process_record(&InputRecord {
                 r#type: InputRecordType::Dispute,
                 client_id: 0,
                 transaction_id: 0,
@@ -374,7 +374,7 @@ mod tests {
             locked: false,
         };
         account
-            .process_record(InputRecord {
+            .process_record(&InputRecord {
                 r#type: InputRecordType::Dispute,
                 client_id: 0,
                 transaction_id: 0,
@@ -386,7 +386,7 @@ mod tests {
         assert_eq!(dec!(0.0), account.held);
         assert_eq!(
             TransactionState::Dispute,
-            account.transactions.get(&0).unwrap().state
+            account.transactions[&0].state
         );
     }
 
@@ -406,7 +406,7 @@ mod tests {
             held: dec!(0.0),
             locked: false,
         };
-        let result = account.process_record(InputRecord {
+        let result = account.process_record(&InputRecord {
             r#type: InputRecordType::Dispute,
             client_id: 0,
             transaction_id: 0,
@@ -434,7 +434,7 @@ mod tests {
             held: dec!(0.0),
             locked: false,
         };
-        let result = account.process_record(InputRecord {
+        let result = account.process_record(&InputRecord {
             r#type: InputRecordType::Dispute,
             client_id: 0,
             transaction_id: 0,
@@ -463,7 +463,7 @@ mod tests {
             locked: false,
         };
         account
-            .process_record(InputRecord {
+            .process_record(&InputRecord {
                 r#type: InputRecordType::Resolve,
                 client_id: 0,
                 transaction_id: 0,
@@ -475,7 +475,7 @@ mod tests {
         assert_eq!(dec!(0.0), account.held);
         assert_eq!(
             TransactionState::Resolved,
-            account.transactions.get(&0).unwrap().state
+            account.transactions[&0].state
         );
     }
 
@@ -496,7 +496,7 @@ mod tests {
             locked: false,
         };
         account
-            .process_record(InputRecord {
+            .process_record(&InputRecord {
                 r#type: InputRecordType::Resolve,
                 client_id: 0,
                 transaction_id: 0,
@@ -508,7 +508,7 @@ mod tests {
         assert_eq!(dec!(0.0), account.held);
         assert_eq!(
             TransactionState::Resolved,
-            account.transactions.get(&0).unwrap().state
+            account.transactions[&0].state
         );
     }
 
@@ -529,7 +529,7 @@ mod tests {
             locked: false,
         };
         account
-            .process_record(InputRecord {
+            .process_record(&InputRecord {
                 r#type: InputRecordType::Chargeback,
                 client_id: 0,
                 transaction_id: 0,
@@ -542,7 +542,7 @@ mod tests {
         assert!(account.locked);
         assert_eq!(
             TransactionState::ChargedBack,
-            account.transactions.get(&0).unwrap().state
+            account.transactions[&0].state
         );
     }
 
@@ -550,13 +550,13 @@ mod tests {
     fn test_process_locked_account_fails_everything() {
         let mut account = Account {
             client_id: 0,
-            transactions: Default::default(),
+            transactions: HashMap::default(),
             available: dec!(0.0),
             held: dec!(10.0),
             locked: true,
         };
         assert!(matches!(
-            account.process_record(InputRecord {
+            account.process_record(&InputRecord {
                 r#type: InputRecordType::Deposit,
                 client_id: 0,
                 transaction_id: 0,
@@ -565,7 +565,7 @@ mod tests {
             Err(ProcessingError::AccountIsLocked)
         ));
         assert!(matches!(
-            account.process_record(InputRecord {
+            account.process_record(&InputRecord {
                 r#type: InputRecordType::Withdrawal,
                 client_id: 0,
                 transaction_id: 0,
@@ -574,7 +574,7 @@ mod tests {
             Err(ProcessingError::AccountIsLocked)
         ));
         assert!(matches!(
-            account.process_record(InputRecord {
+            account.process_record(&InputRecord {
                 r#type: InputRecordType::Dispute,
                 client_id: 0,
                 transaction_id: 0,
@@ -583,7 +583,7 @@ mod tests {
             Err(ProcessingError::AccountIsLocked)
         ));
         assert!(matches!(
-            account.process_record(InputRecord {
+            account.process_record(&InputRecord {
                 r#type: InputRecordType::Resolve,
                 client_id: 0,
                 transaction_id: 0,
@@ -592,7 +592,7 @@ mod tests {
             Err(ProcessingError::AccountIsLocked)
         ));
         assert!(matches!(
-            account.process_record(InputRecord {
+            account.process_record(&InputRecord {
                 r#type: InputRecordType::Chargeback,
                 client_id: 0,
                 transaction_id: 0,

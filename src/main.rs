@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for result in reader.deserialize() {
         let record: model::InputRecord = result?;
-        account_manager.process_record(record).unwrap(); // todo: handle errors
+        account_manager.process_record(&record).unwrap(); // todo: handle errors
     }
 
     Ok(())
