@@ -1,0 +1,79 @@
+[tasks.format]
+toolchain = "nightly"
+command = "cargo"
+args = ["fmt"]
+
+[tasks.build]
+command = "cargo"
+args = ["build"]
+dependencies = ["format"]
+
+[tasks.run]
+command = "cargo"
+args = ["run"]
+dependencies = ["format"]
+
+[tasks.clippy_annoy]
+script = '''
+  cargo clippy --all-targets -- \
+    -W clippy::all \
+    -W clippy::pedantic \
+    -W clippy::restriction \
+    -W clippy::nursery \
+    -D warnings \
+    -A clippy::absolute_paths \
+    -A clippy::arithmetic_side_effects \
+    -A clippy::as_conversions \
+    -A clippy::big_endian_bytes \
+    -A clippy::cast_possible_truncation \
+    -A clippy::cast_sign_loss \
+    -A clippy::error_impl_error \
+    -A clippy::exhaustive_enums \
+    -A clippy::impl_trait_in_params \
+    -A clippy::implicit_return \
+    -A clippy::indexing_slicing \
+    -A clippy::integer_division \
+    -A clippy::integer_division_remainder_used \
+    -A clippy::match_wildcard_for_single_variants \
+    -A clippy::min_ident_chars \
+    -A clippy::missing_asserts_for_indexing \
+    -A clippy::missing_const_for_fn \
+    -A clippy::missing_docs_in_private_items \
+    -A clippy::missing_trait_methods \
+    -A clippy::mod_module_files \
+    -A clippy::module_name_repetitions \
+    -A clippy::partial_pub_fields \
+    -A clippy::pattern_type_mismatch \
+    -A clippy::print_stderr \
+    -A clippy::print_stdout \
+    -A clippy::pub_use \
+    -A clippy::question_mark_used \
+    -A clippy::shadow_reuse \
+    -A clippy::shadow_unrelated \
+    -A clippy::single_call_fn \
+    -A clippy::single_char_lifetime_names \
+    -A clippy::std_instead_of_core \
+    -A clippy::str_to_string \
+    -A clippy::unreadable_literal \
+    -A clippy::unseparated_literal_suffix \
+    -A clippy::use_debug \
+    -A clippy::wildcard_enum_match_arm \
+    -A clippy::allow_attributes_without_reason \
+
+'''
+
+[tasks.clippy_debug_prints]
+script = '''
+    cargo clippy --all-targets -- \
+    -D clippy::print_stderr \
+    -D clippy::dbg_macro \
+
+'''
+
+[tasks.clippy_slices]
+script = '''
+    cargo clippy --all-targets -- \
+    -D clippy::indexing_slicing \
+    -D clippy::missing_asserts_for_indexing \
+
+'''
