@@ -632,7 +632,7 @@ mod tests {
                 0,
                 Transaction {
                     state: TransactionState::Valid,
-                    amount: Default::default(),
+                    amount: Decimal::default(),
                     r#type: TransactionType::Deposit,
                 },
             )]),

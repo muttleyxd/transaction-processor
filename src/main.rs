@@ -28,13 +28,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for result in reader.deserialize() {
         let record: model::InputRecord = result?;
-        match account_manager.process_record(&record) {
-            Err(error) => {
-                if args.log_errors {
-                    eprintln!("Error processing record: `{record:?}`, reason: `{error}`)`");
-                }
+        if let Err(error) = account_manager.process_record(&record) {
+            if args.log_errors {
+                eprintln!("Error processing record: `{record:?}`, reason: `{error}`)`");
             }
-            _ => {}
         }
     }
 
