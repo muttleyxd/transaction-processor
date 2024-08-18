@@ -58,6 +58,12 @@ impl Account {
 
         match record.r#type {
             InputRecordType::Deposit => {
+                if self.transactions.contains_key(&record.transaction_id) {
+                    return Err(ProcessingError::TransactionAlreadyExists(
+                        record.transaction_id,
+                    ));
+                }
+
                 let amount = record.amount.ok_or(ProcessingError::AmountMissing)?;
 
                 self.transactions.insert(
@@ -72,6 +78,12 @@ impl Account {
                 self.available += amount;
             }
             InputRecordType::Withdrawal => {
+                if self.transactions.contains_key(&record.transaction_id) {
+                    return Err(ProcessingError::TransactionAlreadyExists(
+                        record.transaction_id,
+                    ));
+                }
+
                 let amount = record.amount.ok_or(ProcessingError::AmountMissing)?;
 
                 let new_available = self
@@ -168,7 +180,9 @@ pub enum ProcessingError {
     #[error("Decimal overflow")]
     DecimalOverflow,
 
-    #[error("Transaction missing : `{0}`")]
+    #[error("Transaction already exists: `{0}`")]
+    TransactionAlreadyExists(TransactionId),
+    #[error("Transaction missing: `{0}`")]
     TransactionMissing(TransactionId),
     #[error("Transaction wrong state, expected: `{0}`, actual: `{0}`")]
     TransactionWrongState(TransactionState, TransactionState),
@@ -599,6 +613,43 @@ mod tests {
                 amount: None,
             }),
             Err(ProcessingError::AccountIsLocked)
+        ));
+    }
+
+    #[test]
+    fn test_process_transaction_already_exists() {
+        let mut account = Account {
+            client_id: 0,
+            transactions: HashMap::from([(
+                0,
+                Transaction {
+                    state: TransactionState::Valid,
+                    amount: Default::default(),
+                    r#type: TransactionType::Deposit,
+                },
+            )]),
+            available: dec!(0.0),
+            held: dec!(0.0),
+            locked: false,
+        };
+
+        assert!(matches!(
+            account.process_record(&InputRecord {
+                r#type: InputRecordType::Deposit,
+                client_id: 0,
+                transaction_id: 0,
+                amount: Some(dec!(50.0)),
+            }),
+            Err(ProcessingError::TransactionAlreadyExists(_))
+        ));
+        assert!(matches!(
+            account.process_record(&InputRecord {
+                r#type: InputRecordType::Withdrawal,
+                client_id: 0,
+                transaction_id: 0,
+                amount: Some(dec!(50.0)),
+            }),
+            Err(ProcessingError::TransactionAlreadyExists(_))
         ));
     }
 }
