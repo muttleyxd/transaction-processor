@@ -115,18 +115,11 @@ impl Account {
                     .ok_or(ProcessingError::TransactionMissing(record.transaction_id))?;
                 check_if_state_eq(transaction, TransactionState::Valid)?;
 
-                let new_available = self
-                    .available
-                    .checked_sub(transaction.amount)
-                    .ok_or(ProcessingError::DecimalOverflow)?;
-                let new_held = self
-                    .held
-                    .checked_add(transaction.amount)
-                    .ok_or(ProcessingError::DecimalOverflow)?;
-
-                transaction.state = TransactionState::Dispute;
+                let (new_available, new_held) =
+                    calculate_transaction_dispute(transaction, self.available, self.held)?;
                 self.available = new_available;
                 self.held = new_held;
+                transaction.state = TransactionState::Dispute;
             }
             InputRecordType::Resolve => {
                 let transaction = self
@@ -189,6 +182,30 @@ pub enum ProcessingError {
 
     #[error("Withdrawal: not enough money available, available: `{0}`, requested: `{1}`")]
     WithdrawalNotEnoughMoneyAvailable(Decimal, Decimal),
+}
+
+fn calculate_transaction_dispute(
+    transaction: &Transaction,
+    available: Decimal,
+    held: Decimal,
+) -> Result<(Decimal, Decimal), ProcessingError> {
+    match transaction.r#type {
+        TransactionType::Deposit => {
+            let new_available = available
+                .checked_sub(transaction.amount)
+                .ok_or(ProcessingError::DecimalOverflow)?;
+            let new_held = held
+                .checked_add(transaction.amount)
+                .ok_or(ProcessingError::DecimalOverflow)?;
+            Ok((new_available, new_held))
+        }
+        TransactionType::Withdrawal => {
+            let new_held = held
+                .checked_add(-transaction.amount)
+                .ok_or(ProcessingError::DecimalOverflow)?;
+            Ok((available, new_held))
+        }
+    }
 }
 
 fn calculate_transaction_revert(
@@ -384,7 +401,7 @@ mod tests {
                 },
             )]),
             available: dec!(0.0),
-            held: dec!(10.0),
+            held: dec!(0.0),
             locked: false,
         };
         account
@@ -396,12 +413,9 @@ mod tests {
             })
             .unwrap();
 
-        assert_eq!(dec!(10.0), account.available);
-        assert_eq!(dec!(0.0), account.held);
-        assert_eq!(
-            TransactionState::Dispute,
-            account.transactions[&0].state
-        );
+        assert_eq!(dec!(0.0), account.available);
+        assert_eq!(dec!(10.0), account.held);
+        assert_eq!(TransactionState::Dispute, account.transactions[&0].state);
     }
 
     #[test]
