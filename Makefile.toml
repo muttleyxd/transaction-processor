@@ -8,11 +8,6 @@ command = "cargo"
 args = ["build"]
 dependencies = ["format"]
 
-[tasks.run]
-command = "cargo"
-args = ["run"]
-dependencies = ["format"]
-
 [tasks.clippy_annoy]
 script = '''
   cargo clippy --all-targets -- \
