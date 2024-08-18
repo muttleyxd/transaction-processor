@@ -21,6 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     let mut reader = csv::ReaderBuilder::new()
+        .flexible(true)
         .trim(Trim::All)
         .from_path(args.path)?;
 
